@@ -1,14 +1,20 @@
 # DockCheck
 
-DockCheck is a small SwiftUI example for logistics teams reviewing an outbound package inspection. Expand a checklist item to see the recorded finding and the timestamped frames behind it.
+DockCheck is a minimal SwiftUI demo for logistics teams reviewing package inspections before shipment. Open any of the five checklist items to see the finding and its timestamped images.
 
-The bundled example covers the package label, QR scan, damage inspection, security seal, and completion. The available frames show the top of the package during the damage check, so the checklist marks that step **Not evidenced**.
+<p align="center">
+  <img src="docs/dockcheck-preview.png" alt="DockCheck checklist for lot A-104 with the completion step expanded and an inspection frame at 00:27" width="340">
+</p>
 
-This offline demo uses staged images and predefined findings. It runs without a server, account, or API key.
+*Screen preview rendered from the app’s layout and bundled demo data.*
 
-## Run on an iPhone Simulator
+The sample covers label verification, QR scanning, damage inspection, security sealing, and completion. The damage check is marked **Not evidenced** because the available frames show the top of the package and leave its sides out of view.
 
-On macOS with Xcode and an iOS 17 or newer simulator runtime:
+The demo runs offline with staged images and predefined findings. It requires no account, server, or API key.
+
+## Run locally
+
+On macOS with Xcode and an iOS 17 or later simulator runtime, run the following from the repository root.
 
 ```sh
 brew install xcodegen
@@ -16,8 +22,8 @@ xcodegen generate
 open DockCheck.xcodeproj
 ```
 
-Select an iPhone Simulator and press **Run**.
+Select an iPhone simulator in Xcode and press **Run**.
 
 ## License
 
-[MIT](LICENSE). The sample frames come from the original Visual SOP Proof project.
+[MIT](LICENSE). The sample images come from the original Visual SOP Proof project.
