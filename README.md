@@ -1,16 +1,16 @@
 # DockCheck
 
-DockCheck is a minimal SwiftUI demo for logistics teams reviewing package inspections before shipment. Open any of the five checklist items to see the finding and its timestamped images.
+DockCheck is a SwiftUI app for reviewing outbound package inspections. Open any checklist item to see the inspection result and the timestamped images associated with it.
 
 <p align="center">
   <img src="docs/dockcheck-preview.png" alt="DockCheck checklist for lot A-104 with the completion step expanded and an inspection frame at 00:27" width="340">
 </p>
 
-*Screen preview rendered from the app’s layout and bundled demo data.*
+*Screen preview rendered from the app’s layout and bundled inspection data.*
 
 The sample covers label verification, QR scanning, damage inspection, security sealing, and completion. The damage check is marked **Not evidenced** because the available frames show the top of the package and leave its sides out of view.
 
-The demo runs offline with staged images and predefined findings. It requires no account, server, or API key.
+DockCheck works offline and includes a sample inspection with staged images and predefined findings. No account, server, or API key is required.
 
 ## Run locally
 
