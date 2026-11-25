@@ -8,7 +8,7 @@ DockCheck is a SwiftUI iOS app for reviewing outbound package inspections and ha
   <img src="docs/dockcheck-review-editor.png" alt="DockCheck review editor showing Follow-up required and a note about which sides to capture" width="250">
 </p>
 
-*The iPhone 17 Pro Simulator screenshot shows the lot A-104 checklist, follow-up filter, and PDF export. The two illustrations show an expanded checklist item and the review editor. Simulator screenshot by [@dshtryhel](https://github.com/dshtryhel).*
+*The iPhone 17 Pro Simulator screenshot shows the lot A-104 checklist, follow-up filter, and PDF export. The two illustrations show an expanded checklist item and the review editor.*
 
 ## Inspection workflow
 
