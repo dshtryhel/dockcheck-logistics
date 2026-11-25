@@ -5,85 +5,145 @@ import UIKit
 struct DockCheckApp: App {
     var body: some Scene {
         WindowGroup {
-            NavigationStack {
-                List {
-                    Section {
-                        ForEach(InspectionCheck.sample) { check in
-                            DisclosureGroup {
-                                Text(check.observation)
-                                    .padding(.vertical, 4)
+            InspectionView()
+        }
+    }
+}
 
-                                ForEach(check.frames) { frame in
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(frame.timestamp)
-                                            .font(.caption.monospacedDigit())
-                                            .foregroundStyle(.secondary)
-                                        if let image = UIImage(named: frame.name + ".jpg") {
-                                            Image(uiImage: image)
-                                                .resizable()
-                                                .scaledToFit()
-                                                .accessibilityLabel(Text("Inspection frame at \(frame.timestamp)"))
-                                        }
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(check.title)
-                                    Text(check.status.rawValue)
-                                        .font(.subheadline)
+private struct InspectionView: View {
+    @AppStorage("inspection-reviews-lot-a-104") private var reviewData = Data()
+    @State private var selectedCheck: InspectionCheck?
+
+    private let lot = "A-104"
+    private let checks = InspectionCheck.sample
+
+    private var reviews: [Int: InspectionReview] {
+        (try? JSONDecoder().decode([Int: InspectionReview].self, from: reviewData)) ?? [:]
+    }
+
+    var body: some View {
+        let currentReviews = reviews
+        let report = InspectionReport(lot: lot, checks: checks, reviews: currentReviews)
+
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(checks) { check in
+                        let review = currentReviews[check.id] ?? InspectionReview()
+                        DisclosureGroup {
+                            Text(check.observation)
+                                .padding(.vertical, 4)
+
+                            ForEach(check.frames) { frame in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(frame.timestamp)
+                                        .font(.caption.monospacedDigit())
                                         .foregroundStyle(.secondary)
+                                    if let image = UIImage(named: frame.name + ".jpg") {
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .scaledToFit()
+                                            .accessibilityLabel(Text("Inspection frame at \(frame.timestamp)"))
+                                    }
                                 }
                                 .padding(.vertical, 4)
                             }
+
+                            if !review.trimmedNote.isEmpty {
+                                Text(review.trimmedNote)
+                            }
+
+                            Button {
+                                selectedCheck = check
+                            } label: {
+                                Label("Edit review", systemImage: "square.and.pencil")
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(check.title)
+                                Text(check.status.rawValue)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                if review.decision != .pending {
+                                    Text(review.decision.rawValue)
+                                        .font(.caption)
+                                        .foregroundStyle(review.decision == .followUp ? Color.orange : Color.green)
+                                }
+                            }
+                            .padding(.vertical, 4)
                         }
-                    } header: {
-                        Text("Outbound package · Lot A-104")
-                    } footer: {
-                        Text("Offline sample with staged frames and predefined findings. “Not evidenced” means the available frames do not show enough to confirm the step.")
+                    }
+                } header: {
+                    Text("Outbound package · Lot \(lot)")
+                } footer: {
+                    Text("“Not evidenced” means the available frames do not show enough to confirm the step.")
+                }
+
+                Section("Review summary") {
+                    LabeledContent("Reviewed", value: "\(report.reviewedCount) of \(checks.count)")
+                    LabeledContent("Follow-up required", value: "\(report.followUpCount)")
+                    ShareLink(item: report.text, subject: Text("DockCheck inspection · Lot \(lot)")) {
+                        Label("Share summary", systemImage: "square.and.arrow.up")
                     }
                 }
-                .navigationTitle("DockCheck")
+            }
+            .navigationTitle("DockCheck")
+            .sheet(item: $selectedCheck) { check in
+                ReviewEditor(check: check, review: currentReviews[check.id] ?? InspectionReview()) { review in
+                    var updated = reviews
+                    updated[check.id] = review
+                    if let encoded = try? JSONEncoder().encode(updated) {
+                        reviewData = encoded
+                    }
+                    selectedCheck = nil
+                }
             }
         }
     }
 }
 
-private struct InspectionCheck: Identifiable {
-    enum Status: String {
-        case verified = "Verified"
-        case notEvidenced = "Not evidenced"
+private struct ReviewEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: InspectionReview
+
+    let check: InspectionCheck
+    let onSave: (InspectionReview) -> Void
+
+    init(check: InspectionCheck, review: InspectionReview, onSave: @escaping (InspectionReview) -> Void) {
+        self.check = check
+        self.onSave = onSave
+        _draft = State(initialValue: review)
     }
 
-    struct Frame: Identifiable {
-        let name: String
-        let timestamp: String
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    LabeledContent("Frame evidence", value: check.status.rawValue)
+                    Picker("Review decision", selection: $draft.decision) {
+                        ForEach(InspectionReview.Decision.allCases) { decision in
+                            Text(decision.rawValue).tag(decision)
+                        }
+                    }
+                } header: {
+                    Text(check.title)
+                }
 
-        var id: String { name }
+                Section("Notes") {
+                    TextField("Add a note", text: $draft.note, axis: .vertical)
+                        .lineLimit(2...6)
+                }
+            }
+            .navigationTitle("Edit review")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { onSave(draft) }
+                }
+            }
+        }
     }
-
-    let id: Int
-    let title: String
-    let status: Status
-    let observation: String
-    let frames: [Frame]
-
-    static let sample: [Self] = [
-        .init(id: 1, title: "Verify the package label", status: .verified,
-              observation: "The label confirmation shows work order LOT A-104.",
-              frames: [.init(name: "frame_000", timestamp: "00:02")]),
-        .init(id: 2, title: "Read the QR code", status: .verified,
-              observation: "The scan confirmation shows package ID PKG-4821.",
-              frames: [.init(name: "frame_001", timestamp: "00:07")]),
-        .init(id: 3, title: "Inspect all package surfaces", status: .notEvidenced,
-              observation: "The frames show the top of the package. Review footage of all four sides before marking this check verified.",
-              frames: [.init(name: "frame_002", timestamp: "00:12"),
-                       .init(name: "frame_003", timestamp: "00:17")]),
-        .init(id: 4, title: "Apply the security seal", status: .verified,
-              observation: "A blue security seal is visible across the center seam.",
-              frames: [.init(name: "frame_004", timestamp: "00:22")]),
-        .init(id: 5, title: "Complete the inspection", status: .verified,
-              observation: "The inspection-complete screen appears after the sealing frame.",
-              frames: [.init(name: "frame_005", timestamp: "00:27")])
-    ]
 }

@@ -1,16 +1,20 @@
 # DockCheck
 
-DockCheck is a SwiftUI app for reviewing outbound package inspections. Open any checklist item to see the inspection result and the timestamped images associated with it.
+DockCheck is a SwiftUI app for reviewing outbound package inspections. Open a checklist item to inspect timestamped frames, record a decision, and add notes before handing the inspection off to the next shift.
 
 <p align="center">
-  <img src="docs/dockcheck-preview.png" alt="DockCheck checklist for lot A-104 with the completion step expanded and an inspection frame at 00:27" width="340">
+  <img src="docs/dockcheck-preview.png" alt="DockCheck checklist for lot A-104 with the package label step expanded and the review controls visible" width="340">
 </p>
 
-*Screen preview rendered from the app’s layout and bundled inspection data.*
+*Screen preview based on the app layout and bundled inspection for lot A-104.*
 
-The sample covers label verification, QR scanning, damage inspection, security sealing, and completion. The damage check is marked **Not evidenced** because the available frames show the top of the package and leave its sides out of view.
+## Review an inspection
 
-DockCheck works offline and includes a sample inspection with staged images and predefined findings. No account, server, or API key is required.
+- Check the supporting frames for the package label, QR scan, surface inspection, security seal, and completion.
+- Use **Edit review** to mark a step **Accepted** or **Follow-up required** and record any observations. Decisions and notes are saved on the device.
+- Use **Review summary** to track progress and share a text handoff with the decisions, notes, and frame timestamps.
+
+In the included inspection, the surface check is marked **Not evidenced** because the available frames show only the top of the package. A reviewer can flag it for follow-up and specify which views to request.
 
 ## Run locally
 
