@@ -3,11 +3,12 @@
 DockCheck is a SwiftUI iOS app for reviewing outbound package inspections and handing findings over to the next shift. A reviewer can open an inspection video from Files, attach timestamped frames to checklist items, and record which steps are accepted or need follow-up. The handoff can be shared as text or exported as a PDF with supporting images.
 
 <p align="center">
-  <img src="docs/dockcheck-preview.png" alt="DockCheck checklist for lot A-104 with the package label check expanded and a frame at 00:02" width="320">
-  <img src="docs/dockcheck-review-editor.png" alt="DockCheck review editor showing Follow-up required and a note about which sides to capture" width="320">
+  <img src="docs/dockcheck-iphone-simulator.png" alt="DockCheck running on iPhone 17 Pro Simulator with the lot A-104 checklist, review summary, and PDF export" width="250">
+  <img src="docs/dockcheck-preview.png" alt="DockCheck checklist for lot A-104 with the package label check expanded and a frame at 00:02" width="250">
+  <img src="docs/dockcheck-review-editor.png" alt="DockCheck review editor showing Follow-up required and a note about which sides to capture" width="250">
 </p>
 
-*Illustrated previews of the checklist and follow-up note editor for lot A-104.*
+*The iPhone 17 Pro Simulator screenshot shows the lot A-104 checklist, follow-up filter, and PDF export. The two illustrations show an expanded checklist item and the review editor. Simulator screenshot by [@dshtryhel](https://github.com/dshtryhel).*
 
 ## Inspection workflow
 
