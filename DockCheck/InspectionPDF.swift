@@ -12,7 +12,7 @@ struct InspectionPDF: FileDocument {
         let page = CGRect(x: 0, y: 0, width: 595, height: 842)
         let content = page.insetBy(dx: 42, dy: 44)
         let format = UIGraphicsPDFRendererFormat()
-        format.documentInfo = [kCGPDFContextTitle as String: "DockCheck · Lot \(report.lot)"]
+        format.documentInfo = [kCGPDFContextTitle as String: "DockCheck · \(report.inspectionName)"]
 
         data = UIGraphicsPDFRenderer(bounds: page, format: format).pdfData { context in
             let paragraph = NSMutableParagraphStyle()
@@ -43,7 +43,7 @@ struct InspectionPDF: FileDocument {
 
             let evidence = report.checks.flatMap { check in
                 check.frames.compactMap { frame -> (caption: String, image: UIImage)? in
-                    guard let image = UIImage(named: frame.name + ".jpg") else { return nil }
+                    guard let image = frame.image else { return nil }
                     return ("\(check.title) · \(frame.timestamp)", image)
                 }
             }
@@ -52,7 +52,7 @@ struct InspectionPDF: FileDocument {
                 let slot = index % 2
                 if slot == 0 {
                     context.beginPage()
-                    ("DockCheck · Lot \(report.lot) — Evidence" as NSString).draw(
+                    ("DockCheck — Evidence" as NSString).draw(
                         at: content.origin,
                         withAttributes: [.font: UIFont.boldSystemFont(ofSize: 18), .foregroundColor: UIColor.black]
                     )

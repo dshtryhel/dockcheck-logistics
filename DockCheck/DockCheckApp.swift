@@ -17,21 +17,42 @@ private struct InspectionView: View {
     @State private var followUpOnly = false
     @State private var pdf: InspectionPDF?
     @State private var exportingPDF = false
-    @State private var exportError: String?
+    @State private var errorMessage: String?
+    @State private var importedVideo: VideoInspection?
+    @State private var showingVideo = false
+    @State private var choosingVideo = false
+    @State private var confirmingReplacement = false
+    @State private var importingVideo = false
+    @State private var loadedSavedVideo = false
 
-    private let lot = "A-104"
-    private let checks = InspectionCheck.sample
+    private var activeVideo: VideoInspection? { showingVideo ? importedVideo : nil }
 
     private var reviews: [Int: InspectionReview] {
-        (try? JSONDecoder().decode([Int: InspectionReview].self, from: reviewData)) ?? [:]
+        if let activeVideo { return activeVideo.reviews }
+        return (try? JSONDecoder().decode([Int: InspectionReview].self, from: reviewData)) ?? [:]
     }
 
     var body: some View {
+        let video = activeVideo
+        let inspectionName = video?.filename ?? "Lot A-104"
+        let checks = video?.checks ?? InspectionCheck.sample
         let currentReviews = reviews
-        let report = InspectionReport(lot: lot, checks: checks, reviews: currentReviews)
+        let report = InspectionReport(inspectionName: inspectionName, checks: checks, reviews: currentReviews)
 
         NavigationStack {
             List {
+                if let video {
+                    Section {
+                        DisclosureGroup("Video frames (\(video.frames.count))") {
+                            ForEach(video.frames) { frame in
+                                EvidenceFrameView(frame: frame)
+                            }
+                        }
+                    } footer: {
+                        Text("Attach frames to a checklist item in Edit review.")
+                    }
+                }
+
                 Section {
                     Toggle("Show only follow-up items", isOn: $followUpOnly)
                 }
@@ -49,18 +70,7 @@ private struct InspectionView: View {
                                 .padding(.vertical, 4)
 
                             ForEach(check.frames) { frame in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(frame.timestamp)
-                                        .font(.caption.monospacedDigit())
-                                        .foregroundStyle(.secondary)
-                                    if let image = UIImage(named: frame.name + ".jpg") {
-                                        Image(uiImage: image)
-                                            .resizable()
-                                            .scaledToFit()
-                                            .accessibilityLabel(Text("Inspection frame at \(frame.timestamp)"))
-                                    }
-                                }
-                                .padding(.vertical, 4)
+                                EvidenceFrameView(frame: frame)
                             }
 
                             if !review.trimmedNote.isEmpty {
@@ -88,15 +98,17 @@ private struct InspectionView: View {
                         }
                     }
                 } header: {
-                    Text("Outbound package · Lot \(lot)")
+                    Text("Outbound package · \(inspectionName)")
                 } footer: {
-                    Text("“Not evidenced” means the available frames do not show enough to confirm the step.")
+                    if video == nil {
+                        Text("“Not evidenced” means the available frames do not show enough to confirm the step.")
+                    }
                 }
 
                 Section("Review summary") {
                     LabeledContent("Reviewed", value: "\(report.reviewedCount) of \(checks.count)")
                     LabeledContent("Follow-up required", value: "\(report.followUpCount)")
-                    ShareLink(item: report.text, subject: Text("DockCheck inspection · Lot \(lot)")) {
+                    ShareLink(item: report.text, subject: Text("DockCheck inspection · \(inspectionName)")) {
                         Label("Share summary", systemImage: "square.and.arrow.up")
                     }
                     Button {
@@ -107,48 +119,156 @@ private struct InspectionView: View {
                     }
                 }
             }
+            .disabled(importingVideo)
             .navigationTitle("DockCheck")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu("Inspection", systemImage: "ellipsis.circle") {
+                        Button("Import video", systemImage: "film") {
+                            if importedVideo == nil {
+                                choosingVideo = true
+                            } else {
+                                confirmingReplacement = true
+                            }
+                        }
+                        if importedVideo != nil {
+                            if showingVideo {
+                                Button("Open lot A-104") { switchInspection(showVideo: false) }
+                            } else {
+                                Button("Open imported inspection") { switchInspection(showVideo: true) }
+                            }
+                        }
+                    }
+                    .disabled(importingVideo)
+                }
+            }
+            .overlay {
+                if importingVideo {
+                    ProgressView("Extracting video frames…")
+                        .padding(20)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+                }
+            }
+            .task {
+                guard !loadedSavedVideo else { return }
+                loadedSavedVideo = true
+                do {
+                    importedVideo = try VideoInspection.load()
+                    showingVideo = importedVideo != nil
+                } catch {
+                    errorMessage = "The saved video inspection couldn’t be opened."
+                }
+            }
+            .confirmationDialog("Replace imported inspection?", isPresented: $confirmingReplacement, titleVisibility: .visible) {
+                Button("Choose replacement video", role: .destructive) { choosingVideo = true }
+            } message: {
+                Text("After the new video is imported, it will replace the previous video’s frames, decisions, and notes.")
+            }
+            .fileImporter(isPresented: $choosingVideo, allowedContentTypes: [.movie]) { result in
+                switch result {
+                case .success(let url):
+                    importingVideo = true
+                    Task { await importVideo(from: url) }
+                case .failure(let error):
+                    errorMessage = "Couldn’t open video. \(error.localizedDescription)"
+                }
+            }
             .fileExporter(
                 isPresented: $exportingPDF,
                 document: pdf,
                 contentType: .pdf,
-                defaultFilename: "DockCheck-\(lot)"
+                defaultFilename: video == nil ? "DockCheck-A-104" : "DockCheck-video-inspection"
             ) { result in
                 if case .failure(let error) = result {
-                    exportError = error.localizedDescription
+                    errorMessage = "Couldn’t export PDF. \(error.localizedDescription)"
                 }
             }
-            .alert("Couldn’t export PDF", isPresented: Binding(
-                get: { exportError != nil },
-                set: { if !$0 { exportError = nil } }
+            .alert("DockCheck", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
             )) {
-                Button("OK", role: .cancel) { exportError = nil }
+                Button("OK", role: .cancel) { errorMessage = nil }
             } message: {
-                Text(exportError ?? "")
+                Text(errorMessage ?? "")
             }
             .sheet(item: $selectedCheck) { check in
-                ReviewEditor(check: check, review: currentReviews[check.id] ?? InspectionReview()) { review in
-                    var updated = reviews
-                    updated[check.id] = review
-                    if let encoded = try? JSONEncoder().encode(updated) {
-                        reviewData = encoded
-                    }
+                ReviewEditor(
+                    check: check,
+                    review: currentReviews[check.id] ?? InspectionReview(),
+                    availableFrames: video?.frames ?? []
+                ) { review in
+                    try saveReview(review, checkID: check.id)
                     selectedCheck = nil
                 }
             }
         }
+    }
+
+    private func switchInspection(showVideo: Bool) {
+        showingVideo = showVideo
+        followUpOnly = false
+    }
+
+    @MainActor
+    private func importVideo(from url: URL) async {
+        defer { importingVideo = false }
+        do {
+            let imported = try await VideoFrameService.load(from: url)
+            try imported.save()
+            importedVideo = imported
+            switchInspection(showVideo: true)
+        } catch {
+            errorMessage = "Couldn’t import video. \(error.localizedDescription)"
+        }
+    }
+
+    private func saveReview(_ review: InspectionReview, checkID: Int) throws {
+        if var video = activeVideo {
+            video.reviews[checkID] = review
+            try video.save()
+            importedVideo = video
+        } else {
+            var updated = reviews
+            updated[checkID] = review
+            reviewData = try JSONEncoder().encode(updated)
+        }
+    }
+}
+
+private struct EvidenceFrameView: View {
+    let frame: InspectionCheck.Frame
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(frame.timestamp)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+            if let image = frame.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .accessibilityLabel(Text("Inspection frame at \(frame.timestamp)"))
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
 private struct ReviewEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft: InspectionReview
+    @State private var showSaveError = false
 
     let check: InspectionCheck
-    let onSave: (InspectionReview) -> Void
+    let availableFrames: [InspectionCheck.Frame]
+    let onSave: (InspectionReview) throws -> Void
 
-    init(check: InspectionCheck, review: InspectionReview, onSave: @escaping (InspectionReview) -> Void) {
+    init(
+        check: InspectionCheck, review: InspectionReview,
+        availableFrames: [InspectionCheck.Frame], onSave: @escaping (InspectionReview) throws -> Void
+    ) {
         self.check = check
+        self.availableFrames = availableFrames
         self.onSave = onSave
         _draft = State(initialValue: review)
     }
@@ -171,17 +291,51 @@ private struct ReviewEditor: View {
                     TextField("Add a note", text: $draft.note, axis: .vertical)
                         .lineLimit(2...6)
                 }
+
+                if !availableFrames.isEmpty {
+                    Section("Attach video frames") {
+                        ForEach(availableFrames) { frame in
+                            Toggle(isOn: selection(for: frame)) {
+                                EvidenceFrameView(frame: frame)
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle("Edit review")
             .navigationBarTitleDisplayMode(.inline)
+            .alert("Couldn’t save the review", isPresented: $showSaveError) {
+                Button("OK", role: .cancel) {}
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { onSave(draft) }
+                    Button("Save") {
+                        do {
+                            try onSave(draft)
+                        } catch {
+                            showSaveError = true
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private func selection(for frame: InspectionCheck.Frame) -> Binding<Bool> {
+        Binding(
+            get: { draft.frameIDs?.contains(frame.id) ?? false },
+            set: { isSelected in
+                var selected = draft.frameIDs ?? []
+                if isSelected {
+                    selected.insert(frame.id)
+                } else {
+                    selected.remove(frame.id)
+                }
+                draft.frameIDs = selected
+            }
+        )
     }
 }

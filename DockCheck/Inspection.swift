@@ -4,11 +4,13 @@ struct InspectionCheck: Identifiable {
     enum Status: String {
         case verified = "Verified"
         case notEvidenced = "Not evidenced"
+        case manualReview = "Manual review"
     }
 
-    struct Frame: Identifiable {
+    struct Frame: Codable, Identifiable {
         let name: String
         let timestamp: String
+        var jpegData: Data? = nil
 
         var id: String { name }
     }
@@ -50,12 +52,13 @@ struct InspectionReview: Codable {
 
     var decision: Decision = .pending
     var note = ""
+    var frameIDs: Set<String>?
 
     var trimmedNote: String { note.trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 struct InspectionReport {
-    let lot: String
+    let inspectionName: String
     let checks: [InspectionCheck]
     let reviews: [Int: InspectionReview]
 
@@ -72,10 +75,12 @@ struct InspectionReport {
     var text: String {
         let sections = checks.map { check in
             let review = reviews[check.id] ?? InspectionReview()
-            let timestamps = check.frames.map(\.timestamp).joined(separator: ", ")
+            let evidence = check.frames.isEmpty
+                ? "No frames attached"
+                : check.frames.map(\.timestamp).joined(separator: ", ")
             var lines = [
                 check.title,
-                "Evidence: \(check.status.rawValue) (\(timestamps))",
+                "Evidence: \(check.status.rawValue) (\(evidence))",
                 check.observation,
                 "Review decision: \(review.decision.rawValue)",
             ]
@@ -85,7 +90,7 @@ struct InspectionReport {
             return lines.joined(separator: "\n")
         }
         return ([
-            "DockCheck — Outbound package · Lot \(lot)",
+            "DockCheck — Outbound package · \(inspectionName)",
             "\(reviewedCount) of \(checks.count) reviewed · \(followUpCount) require follow-up",
         ] + sections).joined(separator: "\n\n")
     }
