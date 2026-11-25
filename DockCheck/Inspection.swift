@@ -63,9 +63,11 @@ struct InspectionReport {
         checks.filter { decision(for: $0) != .pending }.count
     }
 
-    var followUpCount: Int {
-        checks.filter { decision(for: $0) == .followUp }.count
+    var followUpChecks: [InspectionCheck] {
+        checks.filter { decision(for: $0) == .followUp }
     }
+
+    var followUpCount: Int { followUpChecks.count }
 
     var text: String {
         let sections = checks.map { check in

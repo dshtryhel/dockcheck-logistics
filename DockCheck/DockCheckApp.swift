@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 @main
 struct DockCheckApp: App {
@@ -13,6 +14,10 @@ struct DockCheckApp: App {
 private struct InspectionView: View {
     @AppStorage("inspection-reviews-lot-a-104") private var reviewData = Data()
     @State private var selectedCheck: InspectionCheck?
+    @State private var followUpOnly = false
+    @State private var pdf: InspectionPDF?
+    @State private var exportingPDF = false
+    @State private var exportError: String?
 
     private let lot = "A-104"
     private let checks = InspectionCheck.sample
@@ -28,7 +33,16 @@ private struct InspectionView: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(checks) { check in
+                    Toggle("Show only follow-up items", isOn: $followUpOnly)
+                }
+
+                Section {
+                    let visibleChecks = followUpOnly ? report.followUpChecks : checks
+                    if visibleChecks.isEmpty {
+                        Text("No items require follow-up.")
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(visibleChecks) { check in
                         let review = currentReviews[check.id] ?? InspectionReview()
                         DisclosureGroup {
                             Text(check.observation)
@@ -85,9 +99,33 @@ private struct InspectionView: View {
                     ShareLink(item: report.text, subject: Text("DockCheck inspection · Lot \(lot)")) {
                         Label("Share summary", systemImage: "square.and.arrow.up")
                     }
+                    Button {
+                        pdf = InspectionPDF(report: report)
+                        exportingPDF = true
+                    } label: {
+                        Label("Export PDF", systemImage: "doc.richtext")
+                    }
                 }
             }
             .navigationTitle("DockCheck")
+            .fileExporter(
+                isPresented: $exportingPDF,
+                document: pdf,
+                contentType: .pdf,
+                defaultFilename: "DockCheck-\(lot)"
+            ) { result in
+                if case .failure(let error) = result {
+                    exportError = error.localizedDescription
+                }
+            }
+            .alert("Couldn’t export PDF", isPresented: Binding(
+                get: { exportError != nil },
+                set: { if !$0 { exportError = nil } }
+            )) {
+                Button("OK", role: .cancel) { exportError = nil }
+            } message: {
+                Text(exportError ?? "")
+            }
             .sheet(item: $selectedCheck) { check in
                 ReviewEditor(check: check, review: currentReviews[check.id] ?? InspectionReview()) { review in
                     var updated = reviews
